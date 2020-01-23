@@ -1,0 +1,175 @@
+---
+title: "DataAnalytics_Class2"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r}
+
+days <- c('Mon','Tue','Wed','Thur','Fri','Sat','Sun')
+temp <- c(28,30.5,32,31.2,29.3,27.9,26.4)
+snowed <- c('T','T','F','F','T','T','F')
+
+help("data.frame")
+
+RPI_Weather_Week <- data.frame(days,temp,snowed)
+RPI_Weather_Week
+```
+
+```{r}
+head(RPI_Weather_Week) #Default head shows first 6 rows
+str(RPI_Weather_Week) 
+summary(RPI_Weather_Week)
+```
+
+```{r}
+RPI_Weather_Week[1,] #Showing row 1
+
+RPI_Weather_Week[,1] #Showing column 1
+
+RPI_Weather_Week[,'snowed'] #Showing the values of column snowed
+RPI_Weather_Week[,'days'] #Showing the values of column days
+RPI_Weather_Week[,'temp']
+RPI_Weather_Week[1:5,c('days','temp')] #Showing the first 5 entries in columns days and temp
+
+RPI_Weather_Week$temp #takes temp column
+
+subset(RPI_Weather_Week, subset=snowed==TRUE) #Not good use filter
+
+sorted.snowed <- order(RPI_Weather_Week['snowed'])
+sorted.snowed
+
+RPI_Weather_Week[sorted.snowed,]
+
+dec.snow <- order(-RPI_Weather_Week$temp)
+dec.snow
+
+empty.Dataframe <- data.frame() #Create empty data frame
+
+v1 <- 1:10 #Create a vector 1-10
+v1
+
+letters #vector of letters
+class(letters)
+v2 <- letters[1:10]
+
+df <- data.frame(col.name.1 = v1, col.name.2 = v2)
+df
+
+write.csv(df,file = 'saved_df1.csv')
+df2 <- read.csv('saved_df1.csv')
+df2
+
+
+nrow(df)
+ncol(df)
+nrow(df2)
+ncol(df2)
+```
+
+```{r include=FALSE}
+# These will install required packages if they are not already installed
+if (!require("ggplot2")) {
+   install.packages("ggplot2", dependencies = TRUE)
+   library(ggplot2)
+}
+if (!require("knitr")) {
+   install.packages("knitr", dependencies = TRUE)
+   library(knitr)
+}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(magrittr)
+
+```
+
+```{r}
+epi_df <- read.csv("/Users/paullee/Downloads/EPI_data.csv", header=TRUE)
+epi2010_df <- read.csv("/Users/paullee/Downloads/2010EPI_data.csv", header=TRUE)
+
+```
+
+```{r}
+summary(epi_df)
+fivenum(epi_df$EPI,na.rm=TRUE)
+stem(epi_df$EPI)
+
+#hist(AirPassengers, 
+#     main="Histogram for Air Passengers", 
+#     xlab="Passengers", 
+#     border="blue", 
+#     col="green",
+#     xlim=c(100,700),
+#     las=1, 
+#     breaks=5)
+
+hist(epi_df$EPI, main="Histogram for EPI")
+
+#To run the dist line and rug you have to run with the histogram 
+hist(epi_df$EPI, main="Histogram of EPI", seq(30.,95.,1.0), prob=TRUE)
+lines(density(epi_df$EPI,na.rm=TRUE,bw=1))
+rug(epi_df$EPI)
+
+#Cumulative density function
+plot(ecdf(epi_df$EPI), main="ECDF of EPI", do.points=FALSE, verticals=TRUE)
+
+#QQ Chart
+par(pty="s")
+qqnorm(epi_df$EPI, main="QQ Plot of EPI")
+qqline(epi_df$EPI)
+
+x <- seq(30,95,1)
+qqplot(qt(ppoints(250),df=5),x,main="QQ Plot for Generating Distribution",xlab="Q-Q plot for tdsn")
+qqline(x)
+
+#Exercise 1 - Primary Variables for epi_df is Daly, Water_H
+
+#fivenum for var Daly
+fivenum(epi_df$DALY,na.rm=TRUE)
+#fivenum for var Water_H
+fivenum(epi_df$WATER_H, na.rm=TRUE)
+#Stems for daly an water_h
+stem(epi_df$DALY)
+stem(epi_df$WATER_H)
+
+hist(epi_df$EPI, main="Histogram of DALY", seq(30.,95.,1.0), prob=TRUE)
+lines(density(epi_df$DALY,na.rm=TRUE,bw=1))
+rug(epi_df$DALY)
+
+hist(epi_df$EPI, main="Histogram of Water_H", seq(30.,95.,1.0), prob=TRUE)
+lines(density(epi_df$WATER_H,na.rm=TRUE,bw=1))
+rug(epi_df$WATER_H)
+
+#boxplot for daly and epi
+boxplot(epi_df$DALY,epi_df$EPI, main="Daly and EPI Comparison")
+
+#qqplot for daly and epi
+qqplot(epi_df$EPI,epi_df$DALY, main="Daly and EPI QQ Plot")
+```
+```{r}
+epi_na <- is.na(epi_df$EPI)
+EPI_vec <- epi_df$EPI[!epi_na]
+EPI_vec
+epi_df$EPI
+#data.scientist.job_ids <- roles.df %>% filter(role == "Data Scientist") %>% select(job_id)
+
+```
+
+
+
+
+
+
+
+
+
+
