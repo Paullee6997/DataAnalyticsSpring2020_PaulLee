@@ -1,0 +1,207 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
+```{r}
+library(ggplot2)
+library(dplyr)
+
+epi_df <- read.csv("/Users/paullee/Downloads/EPI_data.csv")
+
+plot(ecdf(epi_df$EPI), do.points=FALSE, verticals=TRUE)
+par(pty="s")
+
+qqnorm(epi_df$EPI)
+qqline(epi_df$EPI)
+
+x <- seq(30,95,1)
+qqplot(qt(ppoints(250),df=5),x,xlab="Q-Q plot for tdsn")
+qqline(x)
+
+plot(ecdf(epi_df$EPI),do.points=FALSE,verticals = TRUE)
+
+plot(ecdf(epi_df$EPI),do.points=TRUE,verticals = TRUE) # points are visible on the plot.
+
+```
+
+```{r}
+plot(mtcars$wt,mtcars$mpg)
+qplot(mtcars$wt,mtcars$mpg)
+qplot(wt, mpg,data = mtcars)
+
+ggplot(mtcars,aes(x=wt,y=mpg)) +
+  geom_point()
+
+data("pressure")
+plot(pressure$temperature,pressure$pressure, type = 'l')
+plot(pressure$temperature,pressure$pressure)
+
+lines(pressure$temperature, pressure$pressure/2, col='red')
+points(pressure$temperature, pressure$pressure/2, col='blue')
+
+qplot(pressure$temperature,pressure$pressure, geom='line')
+qplot(temperature,pressure,data=pressure, geom='line')
+
+ggplot(pressure, aes(x=temperature,y=pressure)) +
+  geom_line() +
+  geom_point()
+
+data("BOD")
+barplot(BOD$demand, names.arg = BOD$Time)
+table(mtcars$cyl)
+barplot(table(mtcars$cyl))
+
+qplot(mtcars$cyl)
+qplot(factor(mtcars$cyl))
+
+qplot(factor(cyl),data=mtcars)
+ggplot(mtcars,aes(x=factor(cyl))) +
+  geom_bar()
+
+hist(mtcars$mpg)
+hist(mtcars$mpg, breaks=10)
+hist(mtcars$mpg, breaks=5)
+hist(mtcars$mpg, breaks=12)
+
+qplot(mpg, data=mtcars, binwidth=4)
+ggplot(mtcars, aes(x=mpg)) + 
+  geom_histogram(binwidth = 4)
+ggplot(mtcars, aes(x=mpg)) + 
+  geom_histogram(binwidth = 4)
+
+data("ToothGrowth")
+plot(ToothGrowth$supp, ToothGrowth$len)
+
+boxplot(len~supp, data = ToothGrowth)
+boxplot(len~supp+dose, data = ToothGrowth)
+
+qplot(ToothGrowth$supp, ToothGrowth$len, geom="boxplot")
+qplot(supp, len, data = ToothGrowth, geom = 'boxplot')
+
+ggplot(ToothGrowth, aes(x=supp,y=len)) + 
+  geom_boxplot()
+
+qplot(interaction(ToothGrowth$supp, ToothGrowth$dose), ToothGrowth$len, geom = "boxplot")
+
+qplot(interaction(supp,dose), len, data=ToothGrowth, geom='boxplot')
+
+ggplot(ToothGrowth, aes(x=interaction(supp,dose), y=len)) +
+  geom_boxplot()
+```
+
+```{r}
+library(ggplot2)
+library(dplyr)
+multivar <-read.csv("/Users/paullee/Desktop/DataAnalytics/multivariate.csv")
+
+View(multivar)
+summary(multivar)
+
+#lm = linear model which allows linear regression
+mm <- multivar %>%
+  lm(formula = Homeowners~Immigrant)
+summary(mm)$coef
+
+#CHECK CODE
+plot(multivar$Homeowners)
+help(abline)
+abline(mm)
+abline(mm,col=3,lwd=3)
+
+#Looking at lm object class
+attributes(mm)
+mm$coefficients
+
+```
+
+```{r}
+install.packages('dplyr')
+install.packages('nycflights13')
+library(nycflights13)
+library(dplyr)
+
+View(flights)
+
+filter(flights, month ==3, day == 5, carrier=="AA")
+head(filter(flights,month==10,day==4,carrier=="AA"))
+
+# slice() function  allows us to select rows by the position
+slice(flights, 1:15)
+
+# arrange() function works similar to filter() function except that instead of filtering or selcting rows, it reorder the rows
+arrange(flights,year,month,day, arr_time)
+head(arrange(flights,year,month,day,arr_time))
+head(arrange(flights,year,month,day, desc(arr_time)))
+
+# select() in dplyr
+select(flights,carrier)
+head(select(flights,carrier))
+# We can add aditional columns easily 
+head(select(flights, carrier, arr_time))
+head(select(flights, carrier, arr_time, day))
+head(rename(flights, airline.carrier = carrier))
+
+# distinct() in dplyr
+# distinct() function in dplyr helps us to select the distinct or unique values in a column.
+distinct(select(flights, carrier))
+
+# mutate() in dplyr
+# in additing to selecting sets of existing columns in the dataframe, sometimes 
+# we need to add new columns that are functions of existing columns in the dataframe.
+# we can use the mutate() function to do that.
+head(mutate(flights, MyNewColumn = arr_delay - dep_delay))
+# If you only want to see the new column instead of calling the mutate, you can 
+# use the transmute() fuction.
+# The difference between the mutate() and transmute() is that mutate() function returns
+# the entire dataframe along with the new column and the transmute() shows only the new column.
+head(transmute(flights, MyNewColumn = arr_delay - dep_delay))
+
+# summarise() in dplyr
+# The summarize() allows us to summarize the data frame into a single row using another aggrigate function
+summarise(flights, avg_air_time = mean(air_time, na.rm = TRUE)) # average airtime
+summarise(flights, TotalFlightTime = sum(air_time, na.rm = TRUE)) # Total Flight Time
+
+# sample_n() in dplyr
+# sample_n() function allows us to pick random number of rows that we wish to choose:
+sample_n(flights, 15) # random 15 rows. 
+sample_n(flights, 71) # random 71 rows. 
+
+# sample_frac() in dplyr
+# if you wan to pick a percentage of rows, sample_frac() function allow us to do that,
+# you need to assign the fraction, example: 30% = 0.3, similaly 10% = 0.1
+sample_frac(flights,0.1) # sample with a 10% of rows from the total number of rows 
+sample_frac(flights, 0.3) # sample with a 30% of rows from the total number of rows 
+sample_n(flights, 30)
+sample_frac(flights, 0.5)
+# dbl stands for doubles, or real numbers.
+# dttm stands for date-times (a date + a time).
+
+# Pipe operator:  %>%
+library(dplyr)
+df_mtcars <- mtcars
+head(df_mtcars)
+
+# nesting 
+filter(df_mtcars, mpg > 20) # filter mpg > 20
+# we want to get 10 samples of that
+sample_n(filter(df_mtcars, mpg > 20), 10)
+# now we want to arrange them in the descending order based on the mpg
+arrange( sample_n(filter(df_mtcars, mpg >20), 10) ,desc(mpg))
+# we can assign this result to a variable called results_mpg
+results_mpg <- arrange( sample_n(filter(df_mtcars, mpg >20), 10) ,desc(mpg))
+results_mpg
+
+# You can do the above using the Pipe Operator %>%
+# dataFrame %>% op1 %>% op2 <$op3
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file). 
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+
