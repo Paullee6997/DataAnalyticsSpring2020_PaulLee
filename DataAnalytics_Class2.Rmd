@@ -1,4 +1,5 @@
 ---
+name: "Paul Lee
 title: "DataAnalytics_Class2"
 output: html_document
 ---
@@ -95,13 +96,26 @@ library(magrittr)
 ```{r}
 epi_df <- read.csv("/Users/paullee/Downloads/EPI_data.csv", header=TRUE)
 epi2010_df <- read.csv("/Users/paullee/Downloads/2010EPI_data.csv", header=TRUE)
-
+water_df <- read.csv("/Users/paullee/Desktop/DataAnalytics/water-treatment.csv", header=TRUE)
+grump_df <- read.csv("/Users/paullee/Desktop/DataAnalytics/GPW3_GRUMP_SummaryInformation_2010.csv", header=TRUE)
 ```
 
 ```{r}
-summary(epi_df)
-fivenum(epi_df$EPI,na.rm=TRUE)
-stem(epi_df$EPI)
+epi2010_df
+
+names(epi2010_df) <- as.matrix(epi2010_df[1, ])
+epi2010_df <- epi2010_df[-1, ]
+epi2010_df[] <- lapply(epi2010_df, function(x) type.convert(as.character(x)))
+epi2010_df
+View(epi2010_df)
+```
+
+```{r}
+#Exercise 1
+
+summary(epi2010_df)
+fivenum(epi2010_df$EPI,na.rm=TRUE)
+stem(epi2010_df$EPI)
 
 #hist(AirPassengers, 
 #     main="Histogram for Air Passengers", 
@@ -112,20 +126,20 @@ stem(epi_df$EPI)
 #     las=1, 
 #     breaks=5)
 
-hist(epi_df$EPI, main="Histogram for EPI")
+hist(epi2010_df$EPI, main="Histogram for EPI")
 
 #To run the dist line and rug you have to run with the histogram 
-hist(epi_df$EPI, main="Histogram of EPI", seq(30.,95.,1.0), prob=TRUE)
-lines(density(epi_df$EPI,na.rm=TRUE,bw=1))
-rug(epi_df$EPI)
+hist(epi2010_df$EPI, main="Histogram of EPI", seq(30.,95.,1.0), prob=TRUE)
+lines(density(epi2010_df$EPI,na.rm=TRUE,bw=1))
+rug(epi2010_df$EPI)
 
 #Cumulative density function
-plot(ecdf(epi_df$EPI), main="ECDF of EPI", do.points=FALSE, verticals=TRUE)
+plot(ecdf(epi2010_df$EPI), main="ECDF of EPI", do.points=FALSE, verticals=TRUE)
 
 #QQ Chart
 par(pty="s")
-qqnorm(epi_df$EPI, main="QQ Plot of EPI")
-qqline(epi_df$EPI)
+qqnorm(epi2010_df$EPI, main="QQ Plot of EPI")
+qqline(epi2010_df$EPI)
 
 x <- seq(30,95,1)
 qqplot(qt(ppoints(250),df=5),x,main="QQ Plot for Generating Distribution",xlab="Q-Q plot for tdsn")
@@ -134,34 +148,120 @@ qqline(x)
 #Exercise 1 - Primary Variables for epi_df is Daly, Water_H
 
 #fivenum for var Daly
-fivenum(epi_df$DALY,na.rm=TRUE)
+fivenum(epi2010_df$DALY,na.rm=TRUE)
 #fivenum for var Water_H
-fivenum(epi_df$WATER_H, na.rm=TRUE)
+fivenum(epi2010_df$WATER_H, na.rm=TRUE)
 #Stems for daly an water_h
-stem(epi_df$DALY)
-stem(epi_df$WATER_H)
+stem(epi2010_df$DALY)
+stem(epi2010_df$WATER_H)
 
-hist(epi_df$EPI, main="Histogram of DALY", seq(30.,95.,1.0), prob=TRUE)
-lines(density(epi_df$DALY,na.rm=TRUE,bw=1))
-rug(epi_df$DALY)
+hist(epi2010_df$EPI, main="Histogram of DALY", seq(30.,95.,1.0), prob=TRUE)
+lines(density(epi2010_df$DALY,na.rm=TRUE,bw=1))
+rug(epi2010_df$DALY)
 
-hist(epi_df$EPI, main="Histogram of Water_H", seq(30.,95.,1.0), prob=TRUE)
-lines(density(epi_df$WATER_H,na.rm=TRUE,bw=1))
-rug(epi_df$WATER_H)
+hist(epi2010_df$EPI, main="Histogram of Water_H", seq(30.,95.,1.0), prob=TRUE)
+lines(density(epi2010_df$WATER_H,na.rm=TRUE,bw=1))
+rug(epi2010_df$WATER_H)
 
 #boxplot for daly and epi
-boxplot(epi_df$DALY,epi_df$EPI, main="Daly and EPI Comparison")
+boxplot(epi2010_df$DALY,epi2010_df$EPI, main="Daly and EPI Comparison")
 
 #qqplot for daly and epi
-qqplot(epi_df$EPI,epi_df$DALY, main="Daly and EPI QQ Plot")
+qqplot(epi2010_df$EPI,epi2010_df$DALY, main="Daly and EPI QQ Plot")
+
+boxplot(epi2010_df$ENVHEALTH,epi2010_df$ECOSYSTEM,epi2010_df$DALY,epi2010_df$AIR_H,epi2010_df$WATER_H,epi2010_df$AIR_E,epi2010_df$WATER_E,epi2010_df$BIODIVERSITY, main="Multivariable BoxPlot Comparison", na.rm=TRUE, names=c("EnvHealth","Ecosystem","DALY","Air_H","Water_H","Air_E","Water_E","Biodiversity"))
+
+#Observing boxplot there are several outliers for Air_E and Water_E
+summary(epi2010_df$AIR_E)
+summary(epi2010_df$WATER_E)
+summary(epi2010_df$BIODIVERSITY)
+#summary(epi2010_df)
+
+hist(epi2010_df$BIODIVERSITY)
 ```
 ```{r}
-epi_na <- is.na(epi_df$EPI)
-EPI_vec <- epi_df$EPI[!epi_na]
-EPI_vec
-epi_df$EPI
-#data.scientist.job_ids <- roles.df %>% filter(role == "Data Scientist") %>% select(job_id)
+library(ggplot2)
+library(dplyr)
 
+summary(epi2010_df$Landlock)
+fivenum(epi2010_df$Landlock)
+
+landlocked <- epi2010_df %>% 
+  filter(Landlock != 1)
+landlocked <- landlocked %>%
+  filter(!is.na(Landlock))
+
+View(landlocked)
+hist(landlocked$Landlock)
+
+ggplot(data = landlocked, mapping = aes(x = EPI, main = "Distribution of non landlocked countries")) +
+  geom_histogram() 
+
+barplot(table(epi2010_df$Landlock), main="Distribution of landlocked countries", xlab="Number of countries")
+
+summary(epi2010_df$No_surface_water) #Binary 1-0
+barplot(table(epi2010_df$No_surface_water), main="Distribution of countries with no surface water", xlab="Number of countries")
+
+summary(epi2010_df$Desert) #Binary 1-0
+barplot(table(epi2010_df$Desert), main="Distribution of desert countries", xlab="Number of countries")
+
+summary(epi2010_df$High_Population_Density)
+barplot(table(epi2010_df$High_Population_Density), main="Distribution of High Pop countries", xlab="Number of countries")
+
+View(summary(epi2010_df$EPI_regions)) #Categorical
+r_names <- unique(epi2010_df$EPI_regions)
+r_names <- r_names[1:8]
+View(r_names)
+
+Non_ea <- epi2010_df %>%
+  filter(EPI_regions %in% r_names) %>%
+  filter(!is.na(EPI_regions))
+View(Non_ea$EPI_regions)
+
+ggplot(data = Non_ea, mapping = aes(x = EPI_regions, main = "Count of different regions")) +
+  geom_bar() 
+        
+summary(epi2010_df$GEO_subregion) #Categorical
+geor_names <- unique(epi2010_df$GEO_subregion)
+View(geor_names)
+geor_names <- geor_names[1:21]
+View(geor_names)
+
+Nongeo_ea <- epi2010_df %>%
+  filter(GEO_subregion %in% geor_names)
+View(Nongeo_ea$GEO_subregion)
+
+ggplot(data = Nongeo_ea, mapping = aes(x = GEO_subregion, main = "Count of different subregions")) +
+  geom_bar() 
+```
+```{r}
+View(grump_df)
+summary(grump_df)
+
+countries <- unique(grump_df$CountryEnglish)
+summary(countries)
+
+#Look at number of units and population per unit
+summary(grump_df$NumUnits)
+fivenum(grump_df$NumUnits)
+
+summary(grump_df$PopulationPerUnit)
+fivenum(grump_df$PopulationPerUnit)
+
+#data is skewed severly
+boxplot(grump_df$PopulationPerUnit,grump_df$NumUnits, na.rm=TRUE, main = "Boxplots of Pop per unit and Num units", names = c("Pop/unit","NumUnit"))
+
+#For both variables data is heavily right tailed 
+hist(grump_df$NumUnits)
+hist(grump_df$PopulationPerUnit)
+
+lowcount_units <- grump_df %>%
+  filter(NumUnits <= 500)
+hist(lowcount_units$NumUnits)
+
+lowcount_pop <- grump_df %>%
+  filter(PopulationPerUnit <= 500)
+hist(lowcount_pop$PopulationPerUnit)
 ```
 
 
