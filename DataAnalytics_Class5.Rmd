@@ -1,0 +1,155 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
+
+lm(formula, data, subset, weights, na.action,
+   method = "qr", model = TRUE, x = FALSE, y = FALSE, qr = TRUE,
+   singular.ok = TRUE, contrasts = NULL, offset, ...)
+```{r}
+library(dplyr)
+library(ggplot2)
+
+multi <- read.csv("/Users/paullee/Desktop/DataAnalytics/multivariate.csv", header=TRUE)
+summary(multi)
+names(multi)
+View(multi)
+
+plot(multi$Income, multi$Immigrant, main="Scatterplot of Income and Num Immigrant")
+
+plot(multi$Immigrant, multi$Homeowners)
+#Homeowners is dependent and Immigrant is independent variable
+linear <- lm(Homeowners~Immigrant, multi)
+linear
+
+plot(multi$Immigrant, multi$Homeowners)
+abline(linear)
+abline(linear,col=3,lwd=3)
+
+#CREATING MULTIPLE REGRESSION MODEL
+
+#Creating hp and pd variables in df
+multi <- multi %>%
+  mutate(HP = Homeowners/Population) %>%
+  mutate(PD = Population/area)
+
+View(multi)
+summary(multi)
+
+#Creating multiple reg model
+adv_linear <- lm(Immigrant ~ Income + Population + HP + PD, multi)
+adv_linear
+
+#Saving coefficients
+cm <- coefficients(adv_linear)
+plot(cm)
+
+```
+
+Using pipe operators from DPLYR
+```{r}
+library(nycflights13)
+
+head(flights)
+summary(flights)
+View(flights)
+
+#Using Filter
+filter(flights, month==10)
+
+#Using Select
+select(flights, origin, dest)
+```
+
+```{r}
+library(datasets)
+library(gcookbook)
+
+#look at dataset pg_mean
+View(pg_mean)
+
+#barplot of group to weight
+ggplot(pg_mean, aes(x=group, y=weight)) + 
+  geom_bar(stat = "identity")
+
+#Look at data set BOD
+BOD
+str(BOD)
+
+#barplot of demand over time but we have missing value for 6 
+ggplot(BOD, aes(x=Time, y=demand)) +
+  geom_bar(stat = "identity")
+
+#Making time into factors we skip over time 6 
+ggplot(BOD, aes(x=factor(Time), y=demand)) +
+  geom_bar(stat = "identity")
+
+#ADDING COLOR TO BARPLOT geom_bar(fill=(),colour=())
+ggplot(pg_mean, aes(x=group, y=weight)) +
+  geom_bar(stat="identity", fill ="orange", colour="red")
+
+ggplot(BOD, aes(x=factor(Time),y=demand)) + 
+  geom_bar(stat="identity", fill="lightblue", colour="red")
+```
+
+CABBAGE DATA FRAME AND VISUALIZATIONS
+```{r}
+View(cabbage_exp)
+summary(cabbage_exp)
+
+#POSITION = DODGE for making vertical split
+ggplot(cabbage_exp, aes(x=Date, fill=Cultivar)) +
+  geom_bar(position = "dodge")
+
+ggplot(cabbage_exp, aes(x=Date, y=Weight, fill=Cultivar)) + 
+  geom_bar(stat="identity")
+
+
+```
+
+DIAMONDS DATA AND VISUALIZATIONS
+```{r}
+data("diamonds")
+View(diamonds)
+
+ggplot(diamonds, aes(x=carat)) +
+  geom_bar()
+
+ggplot(diamonds, aes(x=carat)) +
+  geom_histogram()
+```
+
+USPOP STATE DATA
+```{r}
+ups <- subset(uspopchange, rank(Change)>40)
+ups
+
+ggplot(ups, aes(x=Abb, y=Change, fill=Region)) +
+  geom_bar(stat="identity")
+
+#BIN2d GRAPHS THE BIN VALUES OF EACH STATE
+ggplot(ups, aes(x=Abb, y=Change, fill=Region)) + 
+  geom_bin2d()
+
+ggplot(ups, aes(x=Abb, y=Change, fill=Region)) +
+  geom_col()
+
+
+ggplot(ups, aes(x=reorder(Abb, Change), y=Change, fill=Region)) +
+  geom_bar(stat="identity", colour="red") + 
+  scale_fill_manual(values=c("#669933", "#FFCC66")) +
+  xlab("US-States")
+
+
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file). 
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+
