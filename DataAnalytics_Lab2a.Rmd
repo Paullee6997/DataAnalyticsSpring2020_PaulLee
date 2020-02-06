@@ -1,0 +1,145 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+Read in libraries for work on this notebook
+```{r}
+library(dplyr)
+library(ggplot2)
+```
+
+
+Read in the 2010 epi dataset and then adjust headings where first row entry is var names
+```{r}
+epi <- read.csv("/Users/paullee/Downloads/2010EPI_data.csv", header=TRUE)
+
+View(epi)
+names(epi) <- as.matrix(epi[1, ])
+epi <- epi[-1, ]
+epi[] <- lapply(epi, function(x) type.convert(as.character(x)))
+View(epi)
+
+summary(epi)
+dim(epi)
+```
+
+Central Tendancies of Variables
+```{r}
+mode <- function(x) {
+   uniq <- unique(x)
+   uniq[which.max(tabulate(match(x, uniq)))]
+}
+
+#EPI Variable analysis
+summary(epi$EPI)
+fivenum(epi$EPI)
+print("This is the mean of EPI")
+mean(epi$EPI)
+print("This is the median of EPI")
+median(epi$EPI)
+print("This is the mode of EPI")
+mode(epi$EPI)
+
+ggplot(epi, aes(x=EPI)) + 
+  geom_histogram(binwidth = 2,colour = "blue") +
+  ggtitle("Distribution of EPI")
+
+qqnorm(epi$EPI, main="QQ Plot of EPI")
+qqline(epi$EPI)
+
+ecdf(epi$EPI)
+
+#DALY Variable analysis
+summary(epi$DALY)
+fivenum(epi$DALY)
+print("This is the mean of DALY")
+mean(epi$DALY)
+print("This is the median of DALY")
+median(epi$DALY)
+print("This is the mode of DALY")
+mode(epi$DALY)
+
+ggplot(epi, mapping = aes(x = DALY)) + 
+  geom_histogram(binwidth = 2,colour = "blue") + 
+  ggtitle("Distribution of DALY")
+
+qqnorm(epi$DALY, main="QQ Plot of DALY")
+qqline(epi$DALY)
+
+#Observe relationship with each other
+ggplot(epi, aes(x=EPI, y=DALY)) +
+ geom_point(aes(color = EPI)) +
+ geom_smooth(method ="lm") +
+ coord_cartesian() +
+ scale_color_gradient() +
+ theme_bw() +
+  ggtitle("DALY and EPI relationship")  
+
+#Boxplot comparisons
+boxplot(epi$EPI, epi$DALY, notch=TRUE, main="Boxplot distribution of EPI and DALY", xlab=("EPI and DALY"))
+
+#Distribution comparison
+qqplot(epi$EPI,epi$DALY, main="Daly and EPI QQ Plot")
+
+# Correlation between epi and daly
+x <- epi$EPI
+y <- epi$DALY
+#Correlation Coefficeint
+cor(x, y)
+```
+```{r}
+random_points <- sample_n(epi,5)
+rand_points.df <- random_points %>%
+  select(code, EPI, DALY)
+rand_points.df
+
+random_frac <- sample_frac(epi, .1)
+rand_frac.df <- random_frac %>%
+  select(code, EPI, DALY)
+rand_frac.df
+
+epi <- epi %>%
+  arrange(desc(EPI)) %>%
+  mutate(new_decs_EPI = EPI)
+
+epi <- epi %>%
+  arrange(desc(DALY)) %>%
+  mutate(new_decs_DALY = DALY)
+
+epi <- epi %>%
+  mutate(double_EPI = EPI*2)
+
+epi <- epi %>%
+  mutate(double_DALY = DALY*2)
+
+epi %>%
+  summarise(avg_EPI = mean(EPI, na.rm=TRUE))
+
+epi %>%
+  summarise(avg_DALY = mean(DALY, na.rm = TRUE))
+```
+
+Visualize Envhealth and Ecosystem
+```{r}
+#Boxplot comparisons
+boxplot(epi$ENVHEALTH, epi$ECOSYSTEM, notch=TRUE, main="Boxplot distribution of Envhealth and Ecosystem", xlab=("EnvHealth and Ecosystem"))
+
+#Distribution comparison
+qqplot(epi$ENVHEALTH, epi$ECOSYSTEM, main="Envhealth and Ecosystem QQ Plot")
+```
+
+Run multiple regression on all continous variables to observe relationship between DV and IV
+```{r}
+epi_lm.df <- epi[,6:164]
+epi_lm <- lm(EPI ~ DALY + ENVHEALTH + ECOSYSTEM, data=epi_lm)
+coefficients(epi_lm)
+```
+
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file). 
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+
