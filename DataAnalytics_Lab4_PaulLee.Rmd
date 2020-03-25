@@ -223,7 +223,7 @@ lab1_kknn1
 
 ```{r}
 require(kknn)
-install.packages("kknn")
+#install.packages("kknn")
 library(kknn)
 data(iris)
 m <- dim(iris)[1]
@@ -354,10 +354,50 @@ Titanic rpart, ctree, hclust, randomForest for: Survived ~ .
 library(fastDummies)
 #install.packages("titanic")
 library(titanic)
+#install.packages("randomForest")
+library(randomForest)
 
 df <- titanic_train
 
 head(df)
+
+df <- df %>%
+  select(-Name, -Cabin, -Ticket,-PassengerId)
+
+df.dum <- data.frame(dummy_cols(df,select_columns=c("Pclass","Sex","SibSp", "Parch", "Embarked"),remove_first_dummy = TRUE,remove_selected_columns = TRUE))
+View(df.dum)
+
+train_index <- sample(1:nrow(df.dum), 0.8*nrow(df.dum))
+test_index <- setdiff(1:nrow(df.dum), train_index)
+
+train <- df.dum[train_index,1:21]
+test <- df.dum[test_index,1:21]
+
+mod1 <- rpart(Survived~. , method="class", data =train)
+plot(mod1) # try some different plot options
+text(mod1) # try some different text options
+rpart_pred <- predict(mod1, test, type="class")  # predicted scores
+print(mean((rpart_pred-test$Survived)^2))
+
+mod2 <- ctree(Survived ~. , data= train)
+plot(mod2)
+ctree_pred <- predict(mod2, test)
+print(mean((ctree_pred-test$Survived)^2))
+
+
+
+d <- dist(as.matrix(df))   # find distance matrix 
+hc <- hclust(d)                # apply hirarchical clustering 
+plot(hc)                       # plot the dendrogram
+
+
+train <- na.omit(train)
+test <- na.omit(test)
+
+rf <- randomForest(Survived~., data = train, importance = TRUE)
+rf
+rf_pred <- predict(rf, test, type="class")
+print(mean((rf_pred-test$Survived)^2))
 
 
 ```
