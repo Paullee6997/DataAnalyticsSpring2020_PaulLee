@@ -1,0 +1,501 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(tidyverse)
+library(ggplot2)
+#install.packages("xgboost")
+library(xgboost)
+library(caret)
+library(e1071) 
+library(randomForest)
+library(forecast)
+library(Metrics)
+library(Rtsne)
+library(factoextra)
+library(reshape2)
+library(purrr)
+library(dendextend)
+library(cluster)
+library(fastDummies)
+library(dummies)
+library(corrplot)
+library(Boruta)
+library(cowplot)
+library(class)
+library(ISLR)
+library(RColorBrewer)
+library(MLmetrics)
+library(Metrics)
+```
+
+Read in Data frames
+
+```{r}
+
+wine_red <- read_csv2("/Users/kingg/Desktop/DataAnalytics/A7_Work/winequality-red.csv")
+  
+wine_white <- read_csv2("/Users/kingg/Desktop/DataAnalytics/A7_Work/winequality-white.csv")
+```
+
+Wine Exploration 
+Modeling
+  Classify red or white
+  Classify quality (0-10)
+  Regression Alcohol Content
+
+```{r}
+wine_red$type <- "red"
+wine_white$type <- "white"
+
+wine <- rbind(wine_red, wine_white)
+colnames(wine) <- str_replace_all(colnames(wine), c(" "), "_")
+wine[is.na(wine)] <- 0
+
+ggplot(data=wine, aes(x=type, fill=as.factor(quality))) +
+  ggtitle("Distribution of Red and White Wines") +
+  geom_bar()
+
+ggplot(data=wine, aes(x=type,y=alcohol, fill=as.factor(quality))) +
+  ggtitle("Wine type by Alcohol Content") +
+  geom_col()
+
+#There are heavy outliers in alcohol content
+wine <- wine %>%
+  filter(alcohol <= fivenum(alcohol)[4])
+
+ggplot(data=wine, aes(x=alcohol)) +
+  geom_histogram(bins=5)
+ggplot(data=wine, aes(reorder(type, alcohol), alcohol, fill=as.factor(quality))) +
+  ggtitle("Boxplot of Alcohol Content by Wine Type") +
+  coord_flip() +
+  geom_boxplot()
+
+ggplot(data=wine, aes(sample=alcohol)) +
+  ggtitle("QQnorm of Alcohol Content") +
+  geom_qq()
+
+#Investigate the quality score of wine by each type
+sort(unique(wine$quality)) #Supposed to be from 0-10 but 3-9
+wine$quality <- as.factor(wine$quality)
+ggplot(data=wine, aes(x=quality, fill=type)) +
+  ggtitle("Distribution of wines by quality score") +
+  geom_bar()
+
+corr <- wine %>%
+  select(-type)
+corr <- sapply(corr, as.numeric)
+res1 <- cor.mtest(corr, conf.level = .95)
+corrplot(cor(corr), p.mat = res1$p, method = "color",
+         sig.level = c(.001, .01, .05), pch.cex = .9,
+         insig = "label_sig", pch.col = "white", order = "AOE", tl.cex=.5,  col = brewer.pal(n = 8, name = "RdYlBu"))
+
+#shuffle the dataframe randomly before splitting to train and split
+set.seed(12)
+rows <- sample(nrow(wine))
+wine <- wine[rows,]  
+
+wine$type[which(wine$type == "red")] = 1
+wine$type[which(wine$type == "white")] = 0
+wine$type <- as.factor(wine$type)
+
+train_index <- sample(1:nrow(wine), 0.8*nrow(wine))
+test_index <- setdiff(1:nrow(wine), train_index)
+
+train <- wine[train_index,]
+test <- wine[test_index,]
+
+```
+
+Clustering using Gower Distance and K-Mediod then visualizing using rtsne dimension reduction
+
+```{r}
+#Gower distance to clustering to see if any underlying groups exists in data
+cluster_df <- wine %>%
+  mutate_if(is.character, funs(as.factor(.)))
+distance <- daisy(cluster_df, metric="gower")
+gower_matrix <- as.matrix(distance)
+
+cluster_df[which(gower_matrix == min(gower_matrix[gower_matrix != min(gower_matrix)]), arr.ind = TRUE)[1, ], ]
+
+cluster_df[which(gower_matrix == max(gower_matrix[gower_matrix != max(gower_matrix)]), arr.ind = TRUE)[1, ], ]
+
+sil_width <- c(NA)
+for(i in 2:8){  
+  pam_fit <- pam(distance, diss = TRUE, k = i)  
+  sil_width[i] <- pam_fit$silinfo$avg.width  
+}
+plot(1:8, sil_width,
+     xlab = "Number of clusters",
+     ylab = "Silhouette Width")
+lines(1:8, sil_width)
+#Select 4 clusters maximum sil coefficient and not big increase to 5 clusters
+k <- 4
+#k-mediods model for clustering based on optimal num clusters for max sil coefficient
+pam_fit <- pam(distance, diss = TRUE, k)
+
+#Summary profiles based on grouping rows to their appropriate clustered group
+pam_results <- cluster_df %>%
+  mutate(cluster = pam_fit$clustering) %>%
+  group_by(cluster) %>%
+  do(the_summary = summary(.))
+pam_results$the_summary
+
+#Rtsne dimension redution visualization
+tsne_obj <- Rtsne(distance, is_distance = TRUE)
+tsne_data <- tsne_obj$Y %>%
+  data.frame() %>%
+  setNames(c("X", "Y")) %>%
+  mutate(cluster = factor(pam_fit$clustering))
+
+ggplot(aes(x = X, y = Y), data = tsne_data) +
+  geom_point(aes(color = cluster)) +
+  ggtitle("Rtsne cluster visualization")
+
+ggplot(aes(x = X, y = Y), data = tsne_data) +
+  geom_point(aes(color = wine$quality)) +
+  ggtitle("Rtsne cluster visualization")
+```
+
+KNN Clustering 
+
+```{r}
+knn_train <- train %>%
+  select(-type)
+knn_test <- test %>%
+  select(-type)
+
+
+
+knn_train$quality <- as.factor(knn_train$quality)
+knn_test$quality <- as.factor(knn_test$quality)
+
+knn_train_x <- knn_train[,-12]
+knn_train_x <- sapply(knn_train_x, as.numeric)
+knn_train_y <- knn_train$quality
+
+knn_test_x <- knn_test[,-12]
+knn_test_x <- sapply(knn_test_x, as.numeric)
+knn_test_y <- knn_test$quality
+
+
+error=c()
+for (k in 1:200){
+  predicted = knn(train = scale(knn_train_x),
+                  test = scale(knn_test_x),
+                  cl = knn_train_y,
+                  k=k)
+  error[k]=mean(knn_test_y != predicted)
+}
+
+plot(error, type="b",ylab="Error",xlab="Number of Neighbors", main="Error over  K")
+best6 <- head(sort(error, decreasing=FALSE))
+error
+print(max(which(error == best6), error))
+#k=59
+
+final_pred <- knn(train = scale(knn_train_x),
+                  test = scale(knn_test_x),
+                  cl = knn_train_y,
+                  k=59)
+confusionMatrix(final_pred, knn_test_y)
+```
+
+
+
+Simple Binary Classification problem look at predicting if something is white or wine
+
+RandomForest
+
+```{r}
+rf <- randomForest(type~., data = train, importance = TRUE)
+summary(rf)
+
+rf_pred <- predict(rf, test, type="class")
+
+confusionMatrix(rf_pred, test$type)
+varImpPlot(rf)
+```
+
+
+Multiclass using XGBoost to predict quality of wine more complex problem 
+
+```{r}
+#XGBoost requires that our y labels or classes start from 0 and increase sequentially in our case quality should go from 0-10 but we only have values from 3 4 5 6 7 8 9.
+xgb_wine <- wine %>%
+  filter(quality %in% c(5,6,7))
+xgb_wine$quality <- as.numeric(levels(xgb_wine$quality))[xgb_wine$quality]
+unique(xgb_wine$quality)
+
+#quality <- c(3,4,5,6,7,8,9)
+quality <- c(5,6,7)
+class_encoder <- 0
+for (i in quality){
+  for (j in 1:nrow(xgb_wine)){
+    if(xgb_wine$quality[j] == i){
+      xgb_wine$quality[j] = class_encoder
+    }
+  }
+  class_encoder <- class_encoder +1
+}
+
+#all categoricals must become numeric for xgboost
+xgb_matrix <- data.matrix(xgb_wine)
+
+#Xgboost for multiclass using sgboost library requires matrix input
+xgb_quality <- xgb_matrix[,"quality"]
+
+xgb_vars <- xgb_matrix[,-12]
+
+#Create xgb class object for modeling 
+xgb_data <- xgb.DMatrix(data = xgb_matrix, label = xgb_quality)
+
+train_index <- sample(1:nrow(xgb_wine), 0.8*nrow(xgb_wine))
+test_index <- setdiff(1:nrow(xgb_wine), train_index)
+
+#Create train matrix data with associated labels
+xgb_train <- xgb_vars[train_index,]
+xgb_train_quality <- xgb_quality[train_index]
+xgb_train_matrix <- xgb.DMatrix(data=xgb_train, label=xgb_train_quality)
+
+#Create test matrix data with associated labels
+xgb_test <- xgb_vars[test_index,]
+xgb_test_quality <- xgb_quality[test_index]
+xgb_test_matrix <- xgb.DMatrix(data=xgb_test, label=xgb_test_quality)
+
+num_quality <- length(unique(xgb_wine$quality))
+xgb_params <- list("objective" = "multi:softprob","eval_metric" = "mlogloss","num_class" = num_quality)
+nround <- 500 
+cv.nfold  <- 50
+
+cv_model <- xgb.cv(params = xgb_params,
+                   data = xgb_train_matrix, 
+                   nrounds = nround,
+                   nfold = cv.nfold,
+                   verbose = FALSE,
+                   prediction = TRUE)
+
+xgb_pred<- data.frame(cv_model$pred) %>%
+  mutate(max_prob = max.col(., ties.method = "last"),label = xgb_train_quality + 1)
+head(xgb_pred)
+
+confusionMatrix(factor(xgb_pred$max_prob), factor(xgb_pred$label), mode = "everything")
+
+ggplot(data=xgb_pred, aes(x=as.factor(max_prob))) +
+  geom_bar()
+
+wine_quality_reduce <- wine %>%
+  filter(quality %in% c(5,6,7))
+ggplot(data=wine_quality_reduce, aes(x=quality)) +
+  geom_bar()
+```
+
+  
+Banking
+Modeling
+  Classify customers who have accepted term deposit or not (1-0)
+  
+```{r}
+absent <- read_csv2("/Users/kingg/Desktop/DataAnalytics/A7_Work/Absenteeism_at_work.csv")
+head(absent)
+
+colnames(absent) <- str_replace_all(colnames(absent), c(" "), "_")
+colnames(absent)[21] <- "absent_hours"
+colnames(absent)
+
+ggplot(data=absent, aes(x=absent_hours, fill=Reason_for_absence)) +
+  geom_histogram(bins=10) +
+  ggtitle("Distribution of hours absent by Reason for absences")
+
+unique(absent$Reason_for_absence)
+absent$Reason_for_absence <- as.factor(absent$Reason_for_absence)
+
+ggplot(data=absent, aes(reorder(Reason_for_absence,absent_hours), absent_hours, fill=as.factor(Disciplinary_failure))) +
+  geom_boxplot(color="blue") +
+  coord_flip() +
+  ggtitle("Boxplots of Hours absent by Reason codes and Disciplinary_failures")
+
+ggplot(data=absent, aes(reorder(Reason_for_absence, -absent_hours, sum), absent_hours, fill=as.factor(Education))) +
+  geom_col() +
+  ggtitle("Distribution of Hours absent by Reason codes and Education")
+
+unique(absent$Seasons)
+unique(absent$Month_of_absence) #How can there be month 0? also these values with month 0 have a absent hour value of 0 so consider removing
+unique(absent$Day_of_the_week) #sat=7 and mon =1 so values from (2-6) repersent working week day
+
+absent <- absent %>%
+  filter(Month_of_absence > 0)
+absent$Month_abb <- month.abb[absent$Month_of_absence]
+
+absent_ts <- absent %>%
+  mutate(month_day = paste(Month_abb,Day_of_the_week, sep="-")) %>%
+  select(month_day, absent_hours, Seasons, Reason_for_absence)
+
+ggplot(data=absent_ts, aes(x=month_day, y=absent_hours, fill=absent$Reason_for_absence)) +
+  geom_col() +
+  theme(axis.text.x = element_text(face="bold",size=5, angle=90)) +
+  ggtitle("Absent Hours by Time and Reason for Absence codes")
+
+sea1 <- absent_ts %>%
+  filter(Seasons == 1)
+sea2 <- absent_ts %>%
+  filter(Seasons == 2)
+sea3 <- absent_ts %>%
+  filter(Seasons == 3)
+sea4 <- absent_ts %>%
+  filter(Seasons == 4)
+
+s1 <- ggplot(sea1, aes(x=month_day, y=absent_hours, fill=Reason_for_absence)) +
+  geom_col() +
+  theme_half_open(12) +
+  theme(plot.margin= ggplot2::margin(6,0,6,0)) +
+  theme(axis.text.x = element_text(face="bold",size=5, angle=90)) +
+  ylab(NULL)
+s2 <- ggplot(sea2, aes(x=month_day, y=absent_hours, fill=Reason_for_absence)) +
+  geom_col() +
+  theme_half_open(12) +
+  theme(plot.margin= ggplot2::margin(6,0,6,0)) +
+  theme(axis.text.x = element_text(face="bold",size=5, angle=90)) +
+  ylab(NULL)
+s3 <- ggplot(sea3, aes(x=month_day, y=absent_hours, fill=Reason_for_absence)) +
+  geom_col() +
+  theme_half_open(12) +
+  theme(plot.margin= ggplot2::margin(6,0,6,0)) +
+  theme(axis.text.x = element_text(face="bold",size=5, angle=90)) +
+  ylab(NULL)
+s4 <- ggplot(sea4, aes(x=month_day, y=absent_hours, fill=Reason_for_absence)) +
+  geom_col() +
+  theme_half_open(12) +
+  theme(plot.margin= ggplot2::margin(6,0,6,0)) +
+  theme(axis.text.x = element_text(face="bold",size=5, angle=90)) +
+  ylab(NULL)
+
+legend <- get_legend(s1 + 
+    guides(shape = guide_legend(override.aes = list(size = 5))) +
+    guides(color = guide_legend(override.aes = list(size = 5))) +
+    theme(legend.title = element_text(size = 7),legend.text = element_text(size = 5)) +
+      theme(legend.box.margin = ggplot2::margin(0,0,0,12)))
+
+group_plot <- plot_grid(s1 + theme(legend.position="none"),s2 + theme(legend.position="none"),s3 + theme(legend.position="none"),s4 + theme(legend.position="none"), labels=c("Season1","Season2","Season3","Season4"),label_size=7,hjust=-1)
+
+plot_grid(group_plot, legend, ncol = 2, rel_widths = c(4,1), align=c("hv"))
+
+ggplot(data=absent) +
+  geom_qq(aes(sample=absent_hours)) +
+  ggtitle("QQnorm of Absent hours")
+
+absent <- absent %>%
+  select(-Month_abb)
+
+boruta <- absent
+boruta <- as.data.frame(boruta)
+
+dummy_cols <- c("Reason_for_absence","Month_of_absence","Day_of_the_week","Seasons","Disciplinary_failure","Education","Son","Social_drinker","Social_smoker","Pet")
+
+boruta[dummy_cols] <- lapply(boruta[dummy_cols], factor)
+
+set.seed(101)
+boruta_train <- Boruta(absent_hours~. -ID, data=boruta, doTrace=2)
+plot(boruta_train)
+boruta_final <- TentativeRoughFix(boruta_train)
+plot(boruta_final)
+boruta_vars <- attStats(boruta_final)
+
+index_holders <- which(boruta_vars$decision == "Confirmed", arr.ind=T)
+model_vars <- row.names(boruta_vars[index_holders,])
+
+attStats(boruta_final)
+
+model_vars[6] <- "Work_load_Average/day"
+
+absent <- absent %>%
+  select(model_vars, absent_hours)
+
+new_dummy_cols <- c("Reason_for_absence","Seasons","Disciplinary_failure","Education")
+colnames(absent)
+
+#Creating train/test and dummies
+absent_dum <- data.frame(dummy_cols(absent,select_columns=new_dummy_cols,remove_first_dummy = TRUE,remove_selected_columns = TRUE))
+
+absent_train_index <- sample(1:nrow(absent_dum), 0.8*nrow(absent_dum))
+absent_test_index <- setdiff(1:nrow(absent_dum), absent_train_index)
+
+absent_train <- absent_dum[absent_train_index,-c(1)]
+absent_test <- absent_dum[absent_test_index,-c(1)]
+
+
+```
+
+Linear Regression model for Prediciting hours absent
+```{r}
+absent_lm <- lm(absent_hours~., data = absent_train)
+summary(absent_lm)
+
+absent_lm_pred <- predict(absent_lm, absent_test)
+
+round(absent_lm_pred)
+absent_test$absent_hours
+
+plot(round(absent_lm_pred),absent_test$absent_hours)
+abline(0,1)
+
+lm_mse <- mean((round(absent_lm_pred)-absent_test$absent_hours)^2)
+MAPE(absent_lm_pred, absent_test$absent_hours, na.rm=TRUE)
+smape(absent_lm_pred, absent_test$absent_hours)
+forecast::accuracy(absent_test$absent_hours, absent_lm_pred)
+
+
+absent_rf <- randomForest(absent_hours~., data = absent_train, importance = TRUE)
+summary(absent_rf)
+
+absent_rf_pred <- predict(absent_rf, absent_test)
+plot(round(absent_rf_pred),absent_test$absent_hours)
+abline(0,1)
+
+absent_rf_mse <-  mean((round(absent_rf_pred)-absent_test$absent_hours)^2)
+smape(absent_rf_pred, absent_test$absent_hours)
+forecast::accuracy(absent_rf_pred, absent_test$absent_hours)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
